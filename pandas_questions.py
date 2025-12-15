@@ -67,15 +67,18 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
         'Department code': 'code_dep'
     })
 
-    # Merge with regions and departments
-    merged = referendum_renamed.merge(
+    # Filter out departments with 'Z' in the code FIRST
+    referendum_filtered = referendum_renamed[
+        ~referendum_renamed['code_dep'].str.contains('Z', na=False)
+    ]
+
+    # Merge with regions and departments using inner join
+    # This automatically drops rows that don't match on both sides
+    result = referendum_filtered.merge(
         regions_and_departments,
         on='code_dep',
-        how='left'
+        how='inner'
     )
-
-    # Filter out departments with 'Z' in the code
-    result = merged[~merged['code_dep'].str.contains('Z', na=False)]
 
     return result
 
