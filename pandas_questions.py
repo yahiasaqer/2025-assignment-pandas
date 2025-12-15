@@ -40,14 +40,13 @@ def merge_regions_and_departments(regions, departments):
         'region_code': 'code_reg'
     })
 
-    # Merge on region code
+    # Use LEFT join to keep ALL departments, even if region doesn't exist
     merged = departments_renamed.merge(
         regions_renamed,
         on='code_reg',
         how='left'
     )
 
-    # Select only the required columns
     result = merged[['code_reg', 'name_reg', 'code_dep', 'name_dep']]
 
     return result
@@ -62,29 +61,18 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
     DOM-TOM-COM departments are departements that are remote from
     metropolitan France, like Guadaloupe, Reunion, or Tahiti.
     """
-    # Create code_dep column without removing Department code
-    referendum_copy = referendum.copy()
-    referendum_copy['code_dep'] = referendum_copy['Department code']
+    # Add code_dep column to referendum
+    referendum = referendum.copy()
+    referendum['code_dep'] = referendum['Department code']
 
-    # Filter out departments with 'Z' in the code
-    referendum_filtered = referendum_copy[
-        ~referendum_copy['Department code'].str.contains('Z', na=False)
-    ]
+    # Filter out departments with 'Z' BEFORE merging
+    referendum_filtered = referendum[
+        ~referendum['Department code'].str.contains('Z', na=False)
+    ].copy()
 
-    # Clean up the department codes to ensure matching
-    # Strip whitespace and ensure consistent formatting
-    referendum_filtered['code_dep'] = (
-        referendum_filtered['code_dep'].astype(str).str.strip()
-    )
-    regions_and_departments_copy = regions_and_departments.copy()
-    regions_and_departments_copy['code_dep'] = (
-        regions_and_departments_copy['code_dep'].astype(str).str.strip()
-    )
-
-    # Merge with regions and departments using left join
-    # to keep all referendum data
+    # Merge using left join to keep all referendum rows
     result = referendum_filtered.merge(
-        regions_and_departments_copy,
+        regions_and_departments,
         on='code_dep',
         how='left'
     )
