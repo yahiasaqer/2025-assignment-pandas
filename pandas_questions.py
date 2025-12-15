@@ -61,40 +61,23 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
     DOM-TOM-COM departments are departements that are remote from
     metropolitan France, like Guadaloupe, Reunion, or Tahiti.
     """
-    # Add code_dep column to referendum
+    # Add code_dep column and zero-pad to 2 digits
     referendum = referendum.copy()
-    referendum['code_dep'] = referendum['Department code']
+    referendum['code_dep'] = (
+        referendum['Department code'].astype(str).str.zfill(2)
+    )
 
     # Filter out departments with 'Z' BEFORE merging
     referendum_filtered = referendum[
-        ~referendum['Department code'].str.contains('Z', na=False)
+        ~referendum['Department code'].astype(str).str.contains('Z', na=False)
     ].copy()
 
-    # First merge on code_dep
+    # Merge with regions and departments
     result = referendum_filtered.merge(
         regions_and_departments,
         on='code_dep',
         how='left'
     )
-
-    # For rows with missing region info, try to match by department name
-    missing_mask = result['code_reg'].isna()
-    
-    if missing_mask.any():
-        # Create a secondary merge on department names
-        missing_rows = result[missing_mask].copy()
-        
-        # Try to match by department name
-        name_match = missing_rows[['Department name']].merge(
-            regions_and_departments.rename(columns={'name_dep': 'Department name'}),
-            on='Department name',
-            how='left'
-        )
-        
-        # Fill in the missing region information
-        result.loc[missing_mask, 'code_reg'] = name_match['code_reg'].values
-        result.loc[missing_mask, 'name_reg'] = name_match['name_reg'].values
-        result.loc[missing_mask, 'name_dep'] = name_match['Department name'].values
 
     return result
 
