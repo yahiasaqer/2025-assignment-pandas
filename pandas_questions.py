@@ -70,12 +70,32 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
         ~referendum['Department code'].str.contains('Z', na=False)
     ].copy()
 
-    # Merge using left join to keep all referendum rows
+    # Clean and strip whitespace from codes
+    referendum_filtered['code_dep'] = (
+        referendum_filtered['code_dep'].astype(str).str.strip()
+    )
+    regions_and_departments = regions_and_departments.copy()
+    regions_and_departments['code_dep'] = (
+        regions_and_departments['code_dep'].astype(str).str.strip()
+    )
+
+    # Merge using left join
     result = referendum_filtered.merge(
         regions_and_departments,
         on='code_dep',
         how='left'
     )
+
+    # Fill missing values for special departments
+    # These are typically Corsican sub-departments (2A, 2B)
+    # that should map to Corse region
+    mask = result['code_reg'].isna()
+    
+    # For departments starting with '2' (Corsica), assign to Corse
+    corse_mask = mask & result['code_dep'].str.startswith('2')
+    result.loc[corse_mask, 'code_reg'] = '94'
+    result.loc[corse_mask, 'name_reg'] = 'Corse'
+    result.loc[corse_mask, 'name_dep'] = result.loc[corse_mask, 'Department name']
 
     return result
 
