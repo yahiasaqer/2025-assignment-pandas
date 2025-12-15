@@ -70,32 +70,31 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
         ~referendum['Department code'].str.contains('Z', na=False)
     ].copy()
 
-    # Clean and strip whitespace from codes
-    referendum_filtered['code_dep'] = (
-        referendum_filtered['code_dep'].astype(str).str.strip()
-    )
-    regions_and_departments = regions_and_departments.copy()
-    regions_and_departments['code_dep'] = (
-        regions_and_departments['code_dep'].astype(str).str.strip()
-    )
-
-    # Merge using left join
+    # First merge on code_dep
     result = referendum_filtered.merge(
         regions_and_departments,
         on='code_dep',
         how='left'
     )
 
-    # Fill missing values for special departments
-    # These are typically Corsican sub-departments (2A, 2B)
-    # that should map to Corse region
-    mask = result['code_reg'].isna()
+    # For rows with missing region info, try to match by department name
+    missing_mask = result['code_reg'].isna()
     
-    # For departments starting with '2' (Corsica), assign to Corse
-    corse_mask = mask & result['code_dep'].str.startswith('2')
-    result.loc[corse_mask, 'code_reg'] = '94'
-    result.loc[corse_mask, 'name_reg'] = 'Corse'
-    result.loc[corse_mask, 'name_dep'] = result.loc[corse_mask, 'Department name']
+    if missing_mask.any():
+        # Create a secondary merge on department names
+        missing_rows = result[missing_mask].copy()
+        
+        # Try to match by department name
+        name_match = missing_rows[['Department name']].merge(
+            regions_and_departments.rename(columns={'name_dep': 'Department name'}),
+            on='Department name',
+            how='left'
+        )
+        
+        # Fill in the missing region information
+        result.loc[missing_mask, 'code_reg'] = name_match['code_reg'].values
+        result.loc[missing_mask, 'name_reg'] = name_match['name_reg'].values
+        result.loc[missing_mask, 'name_dep'] = name_match['Department name'].values
 
     return result
 
