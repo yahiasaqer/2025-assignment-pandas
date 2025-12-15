@@ -62,18 +62,15 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
     DOM-TOM-COM departments are departements that are remote from
     metropolitan France, like Guadaloupe, Reunion, or Tahiti.
     """
-    # Rename referendum columns to match department codes
-    referendum_renamed = referendum.rename(columns={
-        'Department code': 'code_dep'
-    })
+    # Create code_dep column without removing Department code
+    referendum['code_dep'] = referendum['Department code']
 
-    # Filter out departments with 'Z' in the code FIRST
-    referendum_filtered = referendum_renamed[
-        ~referendum_renamed['code_dep'].str.contains('Z', na=False)
+    # Filter out departments with 'Z' in the code
+    referendum_filtered = referendum[
+        ~referendum['Department code'].str.contains('Z', na=False)
     ]
 
     # Merge with regions and departments using inner join
-    # This automatically drops rows that don't match on both sides
     result = referendum_filtered.merge(
         regions_and_departments,
         on='code_dep',
