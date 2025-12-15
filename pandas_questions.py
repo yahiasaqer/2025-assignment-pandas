@@ -63,18 +63,30 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
     metropolitan France, like Guadaloupe, Reunion, or Tahiti.
     """
     # Create code_dep column without removing Department code
-    referendum['code_dep'] = referendum['Department code']
+    referendum_copy = referendum.copy()
+    referendum_copy['code_dep'] = referendum_copy['Department code']
 
     # Filter out departments with 'Z' in the code
-    referendum_filtered = referendum[
-        ~referendum['Department code'].str.contains('Z', na=False)
+    referendum_filtered = referendum_copy[
+        ~referendum_copy['Department code'].str.contains('Z', na=False)
     ]
 
-    # Merge with regions and departments using inner join
+    # Clean up the department codes to ensure matching
+    # Strip whitespace and ensure consistent formatting
+    referendum_filtered['code_dep'] = (
+        referendum_filtered['code_dep'].astype(str).str.strip()
+    )
+    regions_and_departments_copy = regions_and_departments.copy()
+    regions_and_departments_copy['code_dep'] = (
+        regions_and_departments_copy['code_dep'].astype(str).str.strip()
+    )
+
+    # Merge with regions and departments using left join
+    # to keep all referendum data
     result = referendum_filtered.merge(
-        regions_and_departments,
+        regions_and_departments_copy,
         on='code_dep',
-        how='inner'
+        how='left'
     )
 
     return result
